@@ -1,15 +1,38 @@
-FROM accetto/ubuntu-vnc-xfce-brave-g3:latest
-USER root
-ENV VNC_PW=0x154A6A \
-    NOVNC_PORT=3000 \
-    NOVNC_HEARTBEAT=30 \
-    HOME=/data \
-    VNC_CONFIG_HOME=/data/.vnc
-EXPOSE 3000
-RUN rm -f /dockerstartup/.initial_sudo_password && \
-    mkdir -p /data/.vnc /tmp && chmod 777 /data /data/.vnc && \
-    rm -f /dockerstartup/vnc.log /dockerstartup/novnc.log && \
-    ln -s /tmp/vnc.log /dockerstartup/vnc.log && \
-    ln -s /tmp/novnc.log /dockerstartup/novnc.log
-ENTRYPOINT ["/usr/bin/tini", "--", "/dockerstartup/startup.sh"]
-CMD ["--verbose", "--tail-vnc"]
+# syntax=docker/dockerfile:1.7
+
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y \
+        xfce4 \
+        xfce4-terminal \
+        tigervnc-standalone-server \
+        novnc \
+        websockify \
+        dbus-x11 \
+        x11-xserver-utils \
+        sudo \
+        wget \
+        curl \
+        nano \
+        supervisor \
+        tini && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN useradd -m -s /bin/bash headless && \
+    echo "headless:headless" | chpasswd && \
+    usermod -aG sudo headless
+
+RUN mkdir -p /home/headless/.vnc && \
+    chown -R headless:headless /home/headless
+
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
+
+EXPOSE 6080 5901
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["/start.sh"]
